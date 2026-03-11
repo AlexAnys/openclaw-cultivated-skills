@@ -12,12 +12,7 @@
   "trigger_accuracy": {
     "precision": 0.0,
     "recall": 0.0,
-    "overall": 0.0
-  },
-  "functional_score": {
-    "pass_rate": 0.0,
-    "improvement_over_baseline": 0.0,
-    "assertions_tested": 0
+    "accuracy": 0.0
   },
   "security_scan": {
     "passed": false,
@@ -28,7 +23,7 @@
     "reviewer": "",
     "notes": ""
   },
-  "compatible_agents_tested": [],
+  "tested_with": "Claude Opus 4.6 via Claude Code CLI",
   "recommended_use_cases": [],
   "known_limitations": [],
   "overall_tier": ""
