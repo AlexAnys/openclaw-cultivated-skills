@@ -220,29 +220,40 @@ Skills that fail to meet Bronze thresholds are not published. Contributors recei
 
 The evaluation pipeline reuses several tools from Anthropic's [skill-creator](https://github.com/anthropics/skill-creator) repository, supplemented by scripts in this project's `pipeline/` directory.
 
-### From skill-creator
+### From Anthropic's skill-creator (bundled in `pipeline/`)
 
-| Tool | Path in skill-creator | Purpose |
+These tools are bundled directly in this repository under `pipeline/` so no external dependency is needed.
+
+| Tool | Path | Purpose |
 |---|---|---|
-| `quick_validate.py` | `scripts/quick_validate.py` | Layer 1 structural validation -- checks SKILL.md, frontmatter, naming, and field constraints |
-| `run_eval.py` | `scripts/run_eval.py` | Layer 2 trigger evaluation -- runs eval queries against `claude -p` and records trigger/no-trigger outcomes |
-| `aggregate_benchmark.py` | `scripts/aggregate_benchmark.py` | Layer 3 result aggregation -- computes pass rates and improvement-over-baseline across assertion results |
+| `grader.md` | `pipeline/agents/grader.md` | Layer 3 grading agent -- evaluates assertions against outputs with 8-step evidence-based process |
+| `comparator.md` | `pipeline/agents/comparator.md` | Blind A/B comparison agent -- scores two outputs without knowing which skill produced them |
+| `analyzer.md` | `pipeline/agents/analyzer.md` | Post-hoc analysis agent -- identifies why winner won and generates improvement suggestions |
+| `run_eval.py` | `pipeline/scripts/run_eval.py` | Trigger evaluation engine -- tests skill descriptions against `claude -p` |
+| `aggregate_benchmark.py` | `pipeline/scripts/aggregate_benchmark.py` | Benchmark aggregation -- computes mean ± stddev across multiple runs |
+| `run_loop.py` | `pipeline/scripts/run_loop.py` | Description optimization loop -- iterates eval + improve with train/test split |
+| `improve_description.py` | `pipeline/scripts/improve_description.py` | Claude-driven description improvement based on eval failures |
+| `generate_report.py` | `pipeline/scripts/generate_report.py` | Interactive HTML optimization report with per-iteration results |
+| `quick_validate.py` | `pipeline/scripts/quick_validate.py` | Structural validation -- checks SKILL.md, frontmatter, naming |
+| `package_skill.py` | `pipeline/scripts/package_skill.py` | Packages skill into distributable .skill file |
+| `viewer.html` | `pipeline/eval-viewer/viewer.html` | Interactive review interface for human evaluation |
+| `generate_review.py` | `pipeline/eval-viewer/generate_review.py` | Generates and serves the review HTML interface |
+| `schemas.md` | `pipeline/references/schemas.md` | JSON schema definitions for evals, grading, benchmark, comparison, analysis |
 
 ### From this project (`pipeline/`)
 
 | Tool | Path | Purpose |
 |---|---|---|
-| `security_scan.py` | `pipeline/security_scan.py` | Layer 1 extended check -- scans `scripts/` for dangerous patterns (shell injection, network calls, path traversal) |
-| `license_check.py` | `pipeline/license_check.py` | Layer 1 extended check -- validates license compatibility for redistribution |
-| `generate_evals.py` | `pipeline/generate_evals.py` | Layer 2 preparation -- generates should-trigger and should-not-trigger queries for a skill |
-| `functional_test.py` | `pipeline/functional_test.py` | Layer 3 orchestration -- runs with-skill vs without-skill subagent pairs and collects outputs |
-| `grader.md` | `pipeline/grader.md` | Layer 3 grading rubric -- assertion definitions used to grade functional test outputs |
-| `generate_review.py` | `pipeline/generate_review.py` | Layer 4 preparation -- generates an HTML eval viewer for human reviewers |
-| `issue_passport.py` | `pipeline/issue_passport.py` | Post-approval -- generates a Quality Passport JSON from aggregated evaluation results |
+| `batch_validate.py` | `pipeline/batch_validate.py` | Layer 1 batch orchestrator -- runs structural validation across multiple skills |
+| `batch_trigger_eval.py` | `pipeline/batch_trigger_eval.py` | Layer 2 batch orchestrator -- auto-generates eval queries and runs trigger tests |
+| `batch_functional_eval.py` | `pipeline/batch_functional_eval.py` | Layer 3 batch orchestrator -- runs with-skill vs without-skill comparisons and grades outputs |
+| `security_scan.py` | `pipeline/security_scan.py` | Security scanner -- detects 28+ dangerous patterns across 6 categories |
+| `issue_passport.py` | `pipeline/issue_passport.py` | Post-approval -- generates Quality Passport JSON from aggregated evaluation results |
+| `generate_catalog.py` | `pipeline/generate_catalog.py` | Catalog generation -- aggregates passports into catalog.json and README tables |
 
 ### Runtime dependencies
 
-- **Claude Code CLI** (`claude`) -- used via `claude -p` for trigger evaluation and functional testing
+- **Claude Code CLI** (`claude`) -- used via `claude -p` for trigger evaluation, functional testing, and description optimization
 - **Python 3.10+** -- all pipeline scripts are Python
-- **skill-creator** -- cloned or installed as a dependency; scripts are invoked directly
+- **PyYAML** (optional) -- used by `quick_validate.py` for YAML parsing; falls back to manual parsing if unavailable
 - **jq** (optional) -- useful for inspecting passport JSON files from the command line
