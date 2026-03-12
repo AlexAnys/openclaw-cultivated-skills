@@ -59,19 +59,19 @@ Every skill must pass through this 4-layer evaluation funnel before inclusion:
 ```
   13,729 community skills (raw)
          |
-    Layer 1: Structural Validation ──── quick_validate
-         |   格式校验、必填字段检查、SKILL.md 规范合规性
+    Layer 1: Structural Validation ──── batch_validate.py + security_scan.py
+         |   格式校验、必填字段检查、安全扫描
          |
-    Layer 2: Trigger Accuracy ───────── run_eval
+    Layer 2: Trigger Accuracy ───────── batch_trigger_eval.py
          |   触发词精准度测试（正向触发 + 反向不触发）
          |
-    Layer 3: Functional & Security ──── automated testing
-         |   功能正确性验证 + 安全扫描（危险命令检测、权限检查）
+    Layer 3: Functional & Security ──── batch_functional_eval.py + grader agent
+         |   功能正确性验证（with-skill vs without-skill 对比 + 断言评分）
          |
-    Layer 4: Human Review ───────────── deep evaluation
+    Layer 4: Human Review ───────────── eval-viewer (interactive review UI)
          |   人工深度审核 + 真实场景测试 + 兼容性验证
          ▼
-    ✓ Quality Passport issued ── 收录至本仓库
+    ✓ Quality Passport issued ── issue_passport.py → 收录至本仓库
 ```
 
 | 层级 / Layer | 名称 / Name | 说明 / Description |
@@ -222,6 +222,78 @@ human_review:
 
 ---
 
+## Automated Evaluation System / 自动化评估系统
+
+本项目集成了 Anthropic 官方 [skill-creator](https://github.com/anthropics/skills) 的完整评估框架，提供从自动化测试到人工审核的端到端 Skill 质量保障。
+
+> This project integrates Anthropic's official [skill-creator](https://github.com/anthropics/skills) evaluation framework, providing end-to-end skill quality assurance from automated testing to human review.
+
+### Pipeline Architecture / 流水线架构
+
+```
+pipeline/
+├── batch_validate.py            # Layer 1: 批量结构校验
+├── batch_trigger_eval.py        # Layer 2: 批量触发精准度测试
+├── batch_functional_eval.py     # Layer 3: 批量功能测试（with/without-skill 对比）
+├── security_scan.py             # 安全扫描（28+ 危险模式检测）
+├── issue_passport.py            # 质量护照自动生成
+├── generate_catalog.py          # 目录生成
+├── agents/                      # 评估 Agent 定义（from Anthropic skill-creator）
+│   ├── grader.md                # 评分 Agent — 验证断言、提取证据、批评评估质量
+│   ├── comparator.md            # 盲评 Agent — 无偏见 A/B 对比，自定义评分维度
+│   └── analyzer.md              # 分析 Agent — 揭盲分析 + benchmark 模式识别
+├── eval-viewer/                 # 人工审核界面
+│   ├── viewer.html              # 交互式审查页面（支持键盘导航、评论、评分查看）
+│   └── generate_review.py       # HTTP 服务器 / 静态 HTML 生成
+├── scripts/                     # Anthropic skill-creator 核心脚本
+│   ├── run_eval.py              # 触发率测试引擎
+│   ├── aggregate_benchmark.py   # 统计汇总（均值 ± 标准差）
+│   ├── run_loop.py              # 迭代优化循环（train/test 分割防过拟合）
+│   ├── improve_description.py   # Claude 驱动的描述优化
+│   ├── generate_report.py       # 交互式 HTML 优化报告
+│   └── package_skill.py         # Skill 打包为 .skill 分发文件
+└── references/
+    └── schemas.md               # 8 种 JSON Schema 定义
+```
+
+### Key Capabilities / 核心能力
+
+| 能力 / Capability | 说明 / Description |
+|:---|:---|
+| **Grader Agent** | 8 步评分流程：审查执行记录、验证断言、提取隐含声明、批评评估本身的质量 |
+| **Blind Comparator** | 盲评两个输出，自定义 Content + Structure 评分维度（1-5 分），防止评估偏见 |
+| **Post-hoc Analyzer** | 揭盲后分析赢家优势、输家改进方向；Benchmark 模式分析跨运行趋势 |
+| **Eval Viewer** | Web 界面支持逐案审查、键盘导航、评论自动保存、前后版本对比 |
+| **Description Optimizer** | 自动优化 Skill 描述的触发精准度，train/test 分割防止过拟合 |
+| **Benchmark System** | 多次运行的统计分析（mean ± stddev），with-skill vs without-skill 增量对比 |
+
+### Quick Start / 快速开始
+
+```bash
+# Layer 1: 批量结构校验
+python -m pipeline.batch_validate --input skills/ --output reports/structural.json
+
+# Layer 2: 批量触发精准度测试
+python -m pipeline.batch_trigger_eval --skills-dir skills/ --output reports/trigger.json
+
+# Layer 3: 批量功能测试
+python -m pipeline.batch_functional_eval --skills-dir skills/ --output reports/functional.json
+
+# Layer 4: 启动人工审核界面
+python pipeline/eval-viewer/generate_review.py <workspace-dir> --skill-name <name>
+
+# 生成质量护照
+python -m pipeline.issue_passport \
+  --skill-name <name> \
+  --structural-report reports/structural.json \
+  --trigger-report reports/trigger.json \
+  --functional-report reports/functional.json \
+  --reviewer <your-name> \
+  --output passports/<name>.json
+```
+
+---
+
 ## Sources & Acknowledgments / 来源与致谢
 
 本项目的 Skill 来源及灵感来自以下优秀项目：
@@ -230,7 +302,7 @@ human_review:
 |:---|:---|
 | [VoltAgent/awesome-openclaw-skills](https://github.com/VoltAgent/awesome-openclaw-skills) | 35K stars — 社区最大的 Skills 集合（13,729 原始 / 5,494 筛选），本项目的主要来源 |
 | [VoltAgent/awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | 10.7K stars — 549+ 官方团队贡献的高质量 Skills |
-| [anthropics/skill-creator](https://github.com/anthropics/skill-creator) | Anthropic 官方 Skill 创建工具 |
+| [anthropics/skills](https://github.com/anthropics/skills) | Anthropic 官方 Skill 创建与评估框架 — 本项目评估系统的核心基础 |
 | [obra/superpowers](https://github.com/obra/superpowers) | Agent 增强能力集合，提供了优秀的 Skill 设计模式参考 |
 | Agent Skills Standard | 由 Anthropic 发起、30+ Agent 支持的技能格式标准 |
 
